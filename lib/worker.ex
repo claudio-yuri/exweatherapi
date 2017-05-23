@@ -1,21 +1,31 @@
 defmodule Metex.Worker do
     use GenServer
+    @name MW
     ## Client API
     def start_link(opts \\ []) do
         # staritng a link makes the spawned process to inform the spawner in case of failure
-        GenServer.start_link(__MODULE__, :ok, opts)
+        GenServer.start_link(__MODULE__, :ok, opts ++ [name: MW])
     end
 
-    def get_temperature(pid, location) do
+    def get_temperature(location) do
         # makes a synchronous call
-        GenServer.call(pid, {:location, location})
+        GenServer.call(@name, {:location, location})
     end
     
-    def get_stats(pid) do
-        GenServer.call(pid, :get_stats)
+    def get_stats do
+        GenServer.call(@name, :get_stats)
     end
-    def reset_stats(pid) do
-        GenServer.cast(pid, :reset_stats)
+    def reset_stats do
+        GenServer.cast(@name, :reset_stats)
+    end
+    def stop do
+        GenServer.cast(@name, :stop)
+    end
+    def terminate(reason, stats) do
+        # We could write to a file, database etc
+        IO.puts "server terminated because of #{inspect reason}"
+            inspect stats
+        :ok
     end
 
     ## Server Callbacks
@@ -40,6 +50,14 @@ defmodule Metex.Worker do
     end
     def handle_cast(:reset_stats, _stats) do
         {:noreply, %{}}
+    end
+    def handle_cast(:stop, stats) do
+        {:stop, :normal, stats}
+    end
+    # handles out-of-bounds messages
+    def handle_info(msg, stats) do
+        IO.puts "received #{inspect msg}"
+        {:noreply, stats}
     end
 
     ## Helper Functions
